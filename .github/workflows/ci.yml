@@ -8,6 +8,18 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: csms
+          POSTGRES_PASSWORD: csms_dev
+          POSTGRES_DB: csms
+        ports:
+          - 5432:5432
+        options: --health-cmd="pg_isready -U csms -d csms" --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DATABASE_URL: postgres://csms:csms_dev@localhost:5432/csms
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -21,3 +33,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - run: pnpm --filter @csms/api db:migrate
+      - run: pnpm --filter @csms/api start > /tmp/csms-api.log 2>&1 &
+      - run: sleep 5
+      - run: pnpm --filter @csms/charger-simulator test:e2e
